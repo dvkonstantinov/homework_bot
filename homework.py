@@ -38,7 +38,7 @@ handler.setFormatter(formatter)
 
 
 def send_message(bot, message):
-    """Отправлка сообщений"""
+    """Отправлка сообщений."""
     try:
         bot.send_message(TELEGRAM_CHAT_ID, message)
     except SendMessageException as error:
@@ -49,7 +49,7 @@ def send_message(bot, message):
 
 
 def get_api_answer(current_timestamp):
-    """Запрос к API"""
+    """Запрос к API."""
     timestamp = current_timestamp or int(time.time())
     params = {'from_date': timestamp}
     headers = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
@@ -62,7 +62,7 @@ def get_api_answer(current_timestamp):
 
 
 def check_response(response):
-    """Проверка ответа на корректность"""
+    """Проверка ответа на корректность."""
     if not isinstance(response, dict):
         logger.error('Неверный тип response')
         raise TypeError('Неверный тип response')
@@ -78,7 +78,7 @@ def check_response(response):
 
 
 def parse_status(homework):
-    """Парсинг домашней работы"""
+    """Парсинг домашней работы."""
     if 'homework_name' in homework and 'status' in homework:
         homework_name = homework.get('homework_name')
         homework_status = homework.get('status')
@@ -93,7 +93,7 @@ def parse_status(homework):
 
 
 def check_tokens():
-    """Проверка токенов"""
+    """Проверка токенов."""
     if PRACTICUM_TOKEN and TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
         return True
     else:
