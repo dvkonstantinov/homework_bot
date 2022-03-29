@@ -86,9 +86,9 @@ def check_response(response):
         raise TypeError('Неверный тип response')
     try:
         homeworks = response.get('homeworks')
-    except TypeError as error:
-        logger.error(f'Неверный тип response: {error}')
-        raise TypeError(f'Неверный тип response: {error}')
+    except KeyError as error:
+        logger.error(f'Отсутствует нужный ключ: {error}')
+        raise KeyError(f'Отсутствует нужный ключ: {error}')
     if homeworks:
         return homeworks[0]
     else:
