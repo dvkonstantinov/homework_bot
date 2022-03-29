@@ -1,17 +1,18 @@
+import datetime
 import logging
 import os
 import time
+from http import HTTPStatus
+from logging.handlers import RotatingFileHandler
 
 import requests
 import telegram
 from dotenv import load_dotenv
-from logging.handlers import RotatingFileHandler
-from http import HTTPStatus
-from exceptions import (TokenException, SendMessageException,
-                        ApiException, DataException, TypeException)
+
+from exceptions import (TokenException, ApiException, DataException,
+                        TypeException)
 
 load_dotenv()
-
 
 PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
@@ -41,9 +42,9 @@ def send_message(bot, message):
     """Отправлка сообщений."""
     try:
         bot.send_message(TELEGRAM_CHAT_ID, message)
-    except SendMessageException as error:
+    except telegram.TelegramError as error:
         logger.error(f'Сбой при отправке сообщения: {error}')
-        raise SendMessageException(f'Сбой при отправке сообщения: {error}')
+        raise telegram.TelegramError(f'Сбой при отправке сообщения: {error}')
     else:
         logger.info('Сообщение в телеграм отправлено')
 
@@ -53,9 +54,26 @@ def get_api_answer(current_timestamp):
     timestamp = current_timestamp or int(time.time())
     params = {'from_date': timestamp}
     headers = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
-    response = requests.get(ENDPOINT, headers=headers, params=params)
+    try:
+        response = requests.get(ENDPOINT, headers=headers, params=params)
+    except requests.exceptions.Timeout:
+        logger.error('Время ожидания соединения вышло')
+        raise requests.exceptions.Timeout('Время ожидания соединения вышло')
+    except requests.exceptions.TooManyRedirects:
+        logger.error('Произошло слишком много редиректов')
+        raise requests.exceptions.TooManyRedirects('Слишком много редиректов')
+    except requests.exceptions.RequestException:
+        logger.error('Произошла ошибка соединения')
+        raise requests.exceptions.RequestException('Произошла ошибка '
+                                                   'соединения')
     if response.status_code == HTTPStatus.OK:
-        return response.json()
+        try:
+            response = response.json()
+            return response
+        except TypeError as error:
+            logger.error(f'Вернувшиеся данные не в формате json: {error}')
+            raise TypeError(f'Вернувшиеся данные не в формате json: {error}')
+
     else:
         logger.error('Недоступен ендпоинт практикума')
         raise ApiException('API практикума недоступно')
@@ -66,10 +84,11 @@ def check_response(response):
     if not isinstance(response, dict):
         logger.error('Неверный тип response')
         raise TypeError('Неверный тип response')
-    if not isinstance(response.get('homeworks'), list):
-        logger.error('Неверный тип response')
-        raise TypeError('Неверный тип response')
-    homeworks = response['homeworks']
+    try:
+        homeworks = response.get('homeworks')
+    except TypeError as error:
+        logger.error(f'Неверный тип response: {error}')
+        raise TypeError(f'Неверный тип response: {error}')
     if homeworks:
         return homeworks[0]
     else:
@@ -89,7 +108,8 @@ def parse_status(homework):
         else:
             raise DataException('Недокументированный статус домашней работы')
     else:
-        raise KeyError("Отсутствует ключ homework_name в ответе API")
+        raise KeyError("Отсутствует ключи homework_name или status в ответе "
+                       "API")
 
 
 def check_tokens():
@@ -106,7 +126,8 @@ def main():
         logger.critical('Отсутствуют переменные окружения!')
         raise TokenException('Отсутствуют переменные окружения')
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
-    current_timestamp = 1
+    time_ago = datetime.datetime.now() - datetime.timedelta(minutes=10)
+    current_timestamp = int(time.time()) - int(time_ago.timestamp())
     last_check_message = None
     while True:
         try:
@@ -122,7 +143,6 @@ def main():
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             send_message(bot, message)
-            print(message)
             time.sleep(RETRY_TIME)
 
 
