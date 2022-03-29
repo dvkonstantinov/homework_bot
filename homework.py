@@ -84,11 +84,9 @@ def check_response(response):
     if not isinstance(response, dict):
         logger.error('Неверный тип response')
         raise TypeError('Неверный тип response')
-    try:
-        homeworks = response.get('homeworks')
-    except KeyError as error:
-        logger.error(f'Отсутствует нужный ключ: {error}')
-        raise KeyError(f'Отсутствует нужный ключ: {error}')
+    # Прощу прощения за тупость. Прочитал про все методы у словарей, get при
+    # отсутствии значения возвращает None
+    homeworks = response.get('homeworks')
     if homeworks:
         return homeworks[0]
     else:
